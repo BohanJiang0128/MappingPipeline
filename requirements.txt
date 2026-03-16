@@ -1,0 +1,27 @@
+# DensePose CSE Mapping Pipeline – Python dependencies
+#
+# Install:   pip install -r requirements.txt
+#
+# Notes:
+#   - PyTorch + CUDA must be installed separately for your GPU/driver version.
+#     See https://pytorch.org/get-started/locally/
+#   - Detectron2 must be installed separately.
+#     See https://detectron2.readthedocs.io/en/latest/tutorials/install.html
+#   - The Hugging Face diffusers model is downloaded on first run.
+
+# Core
+numpy
+opencv-python
+Pillow
+matplotlib
+tqdm
+
+# Diffusion outpainting (Step 1)
+diffusers
+transformers
+accelerate
+
+# DensePose (Steps 4–5) – detectron2 & torch installed separately
+
+# BSA computation (Step 6)
+pyvista
