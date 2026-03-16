@@ -31,6 +31,7 @@ MappingPipeline/
 ├── requirements.txt           ← Python dependencies
 ├── run_pipeline.sh            ← end-to-end batch runner
 ├── config.py                  ← central configuration
+├── navigation_tool.py         ← interactive correspondence viewer
 │
 ├── steps/                     ← pipeline step scripts
 │   ├── outpaint.py            ← Step 1: diffusion outpainting
@@ -48,7 +49,9 @@ MappingPipeline/
 ├── assets/
 │   ├── model_final_1d3314.pkl ← DensePose CSE model weights
 │   ├── smpl_27554_embed.npy   ← SMPL vertex embeddings
-│   └── patient.obj            ← SMPL mesh for BSA calculation
+│   ├── patient.obj            ← SMPL mesh for BSA calculation
+│   ├── m_1.obj … m_5.obj     ← male avatar meshes (BMI scales 1–5)
+│   └── f_1.obj … f_5.obj     ← female avatar meshes (BMI scales 1–5)
 │
 └── data/                      ← patient input data (see data/README.md)
     └── README.md
@@ -120,6 +123,18 @@ bash run_pipeline.sh --from 3 --to 5           # Steps 3–5
 bash run_pipeline.sh --patient NIH-000021 --from 4
 ```
 
+### Skip binary-mask filtering
+
+If binary masks are not available (the `BinaryMasks/` directory is
+optional), pass `--no-mask` to skip mask-filtered vertex output in
+Step 5.  Step 6 will still run but will only report unmasked BSA values.
+
+```bash
+bash run_pipeline.sh --no-mask
+bash run_pipeline.sh --patient NIH-000021 --from 5 --no-mask
+python -m steps.map_vertices --no-mask         # standalone
+```
+
 ### Run steps individually
 
 Each step can also be run as a standalone Python module:
@@ -182,9 +197,9 @@ JSON outputs:
 
 | File | Description |
 |------|------------|
-| `vertex_rgb.json` | Per-vertex RGB colour samples for each image |
+| `vertex_rgb.json` | Per-vertex median RGB colour for each image |
 | `vertex_parts.json` | List of vertex indices visible in each image |
-| `vertex_parts_masked.json` | Vertex indices filtered by the clinical binary mask |
+| `vertex_parts_masked.json` | Vertex indices filtered by the clinical binary mask (omitted when `--no-mask` is set) |
 
 **Output:** `data/<patient>/mapping_output/`
 
@@ -216,7 +231,7 @@ data/NIH-000021/
 ├── mapping_output/
 │   ├── vertex_rgb.json
 │   ├── vertex_parts.json
-│   └── vertex_parts_masked.json
+│   └── vertex_parts_masked.json   ← only when masks are used
 └── bsa_output/
     ├── photo_bsa.json
     └── patient_bsa.json
@@ -248,6 +263,58 @@ original Facebook implementation:
 
 These changes are intentional and must be preserved if updating the DensePose
 library.
+
+---
+
+## Navigation tool (`navigation_tool.py`)
+
+An interactive GUI for exploring the pipeline's output.  It is **not** part
+of the batch pipeline — it consumes the finished JSON outputs produced by
+Steps 5 and 6.
+
+The viewer displays three synchronized panels:
+
+| Panel | Description |
+|-------|-------------|
+| **Montage** (left) | Thumbnail grid of all images for the current filter |
+| **Avatar** (centre) | 3D SMPL mesh — click a vertex to filter images |
+| **Photo** (right) | Full-resolution image with zoom and pan |
+
+### Features
+
+- **Patient dropdown** — view one patient or all patients at once.
+- **Vertex picking** — click any point on the mesh to see which images
+  contain that vertex and how many vertices each image covers.
+- **Texture mode** — toggle to paint per-vertex median RGB colours from
+  `vertex_rgb.json` onto the mesh.
+- **Gender / BMI slider** — switch between avatar meshes
+  (`m_1.obj`–`m_5.obj`, `f_1.obj`–`f_5.obj`) stored in `assets/`.
+- **Zoom sync** — scrolling on the photo or the mesh zooms both views.
+
+### Requirements
+
+The navigation tool requires a display and the following additional
+packages (beyond the pipeline's own dependencies):
+
+```
+PySide6
+pyvistaqt
+```
+
+### Usage
+
+```bash
+cd MappingPipeline
+
+python navigation_tool.py                          # uses data/ and assets/ by default
+python navigation_tool.py --data-dir /path/to/data # override patient data location
+python navigation_tool.py --assets-dir /path/to/assets
+```
+
+The tool auto-discovers patients under the data directory by looking for
+folders that contain both `UnmarkedImages/` and
+`mapping_output/vertex_parts.json`.  Make sure the pipeline has completed
+at least through Step 5 before launching the viewer.
 
 ---
 

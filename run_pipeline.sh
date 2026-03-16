@@ -8,6 +8,7 @@
 #   bash run_pipeline.sh --from 3                  # resume from step 3
 #   bash run_pipeline.sh --only 2                  # run only step 2 (QA)
 #   bash run_pipeline.sh --patient NIH-000021 --from 3 --to 5
+#   bash run_pipeline.sh --no-mask                     # skip binary-mask filtering in Step 5
 #
 # Steps:
 #   1  Outpaint clinical images (GPU, diffusion model)
@@ -27,6 +28,7 @@ PATIENT_ARG=""
 FROM_STEP=1
 TO_STEP=6
 ONLY_STEP=""
+NO_MASK=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -38,6 +40,8 @@ while [[ $# -gt 0 ]]; do
             TO_STEP="$2"; shift 2 ;;
         --only)
             ONLY_STEP="$2"; FROM_STEP="$2"; TO_STEP="$2"; shift 2 ;;
+        --no-mask)
+            NO_MASK="--no-mask"; shift ;;
         -h|--help)
             head -n 17 "$0" | tail -n +2 | sed 's/^# \?//'
             exit 0 ;;
@@ -55,6 +59,7 @@ echo "========================================"
 echo "  DensePose CSE Mapping Pipeline"
 echo "  Steps: ${FROM_STEP}–${TO_STEP}"
 echo "  Patient: ${PATIENT_ARG:-all}"
+echo "  Masks:   ${NO_MASK:-enabled}"
 echo "========================================"
 echo ""
 
@@ -93,7 +98,7 @@ fi
 # Step 5: Vertex mapping
 if should_run 5; then
     echo "──── Step 5: Vertex Mapping ────"
-    python -m steps.map_vertices $PATIENT_ARG
+    python -m steps.map_vertices $PATIENT_ARG $NO_MASK
     echo ""
 fi
 

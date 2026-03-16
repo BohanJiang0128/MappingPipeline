@@ -37,7 +37,7 @@ run_patient() {
 
     echo "  Running DensePose CSE on $patient_id ..."
     cd "$PIPELINE_ROOT"
-    python "$APPLY_NET" dump \
+    PYTHONPATH="$PIPELINE_ROOT:${PYTHONPATH:-}" python "$APPLY_NET" dump \
         "$CONFIG" \
         "$MODEL" \
         "$input_dir" \

@@ -7,17 +7,19 @@ For each high-res composite image this script:
   2. Selects the detected person whose bounding box best overlaps the
      region where the original clinical image was placed.
   3. Computes per-pixel closest SMPL vertex assignments.
-  4. Records three JSON outputs:
+  4. Records JSON outputs:
 
-     * ``vertex_rgb.json``         – per-vertex RGB color samples
+     * ``vertex_rgb.json``         – per-vertex median RGB colour
      * ``vertex_parts.json``       – which vertices appear in each image
      * ``vertex_parts_masked.json``– vertices filtered by the clinical
-                                     binary mask (foreground only)
+                                     binary mask (only when masks are
+                                     available and ``--no-mask`` is not set)
 
 Usage
 -----
     python -m steps.map_vertices
     python -m steps.map_vertices --patient NIH-000021
+    python -m steps.map_vertices --no-mask              # skip binary-mask filtering
 """
 
 import argparse
@@ -114,7 +116,7 @@ def _place_mask_on_canvas(mask: np.ndarray, offset: tuple,
     return canvas > 127
 
 
-def map_patient(patient_id: str):
+def map_patient(patient_id: str, *, use_mask: bool = True):
     """Compute vertex mappings for one patient."""
     pdir = cfg.patient_dir(patient_id)
     composite_dir = pdir / cfg.HIGHRES_COMPOSITE_DIR
@@ -142,7 +144,7 @@ def map_patient(patient_id: str):
 
     vertices_rgb: dict = {}
     vertices_parts: dict = {}
-    vertices_parts_masked: dict = {}
+    vertices_parts_masked: dict = {} if use_mask else None
 
     for img_path in image_paths:
         fname = os.path.basename(img_path)
@@ -250,44 +252,54 @@ def map_patient(patient_id: str):
         vert_rgb: dict = {}
         for v in unique_verts:
             ys, xs = np.where(cv_np == v)
+            samples = []
             for k in range(len(ys)):
                 yy, xx = ys[k], xs[k]
                 if rm_np[yy, xx] == 0:
                     continue
-                rgb = image_u8[yy, xx].tolist()
-                vert_rgb.setdefault(int(v), []).append(rgb)
+                samples.append(image_u8[yy, xx])
+            if samples:
+                median = np.median(samples, axis=0).astype(int).tolist()
+                vert_rgb[int(v)] = median
 
         vertices_rgb[base_name] = vert_rgb
         vertices_parts[base_name] = unique_verts
 
         # Mask-filtered vertex list
-        bin_mask_raw = _load_binary_mask(mask_dir, base_name)
-        if bin_mask_raw is not None:
-            bin_canvas = _place_mask_on_canvas(
-                bin_mask_raw, offset, is_portrait)
-            bin_cropped = bin_canvas[y1:y2, x1:x2]
+        if use_mask:
+            bin_mask_raw = _load_binary_mask(mask_dir, base_name)
+            if bin_mask_raw is not None:
+                bin_canvas = _place_mask_on_canvas(
+                    bin_mask_raw, offset, is_portrait)
+                bin_cropped = bin_canvas[y1:y2, x1:x2]
 
-            masked_verts = set()
-            for v in unique_verts:
-                ys, xs = np.where(cv_np == v)
-                for k in range(len(ys)):
-                    yy, xx = ys[k], xs[k]
-                    if rm_np[yy, xx] and bin_cropped[yy, xx]:
-                        masked_verts.add(int(v))
-                        break
-            vertices_parts_masked[base_name] = sorted(masked_verts)
+                masked_verts = set()
+                for v in unique_verts:
+                    ys, xs = np.where(cv_np == v)
+                    for k in range(len(ys)):
+                        yy, xx = ys[k], xs[k]
+                        if rm_np[yy, xx] and bin_cropped[yy, xx]:
+                            masked_verts.add(int(v))
+                            break
+                vertices_parts_masked[base_name] = sorted(masked_verts)
+            else:
+                vertices_parts_masked[base_name] = unique_verts
+
+        if use_mask and base_name in vertices_parts_masked:
+            print(f"  Mapped {base_name}: {len(unique_verts)} vertices"
+                  f" ({len(vertices_parts_masked[base_name])} masked)")
         else:
-            vertices_parts_masked[base_name] = unique_verts
-
-        print(f"  Mapped {base_name}: {len(unique_verts)} vertices"
-              f" ({len(vertices_parts_masked[base_name])} masked)")
+            print(f"  Mapped {base_name}: {len(unique_verts)} vertices")
 
     # Write outputs
-    for name, data in [
+    outputs = [
         ("vertex_rgb.json", vertices_rgb),
         ("vertex_parts.json", vertices_parts),
-        ("vertex_parts_masked.json", vertices_parts_masked),
-    ]:
+    ]
+    if vertices_parts_masked is not None:
+        outputs.append(("vertex_parts_masked.json", vertices_parts_masked))
+
+    for name, data in outputs:
         out_path = out_dir / name
         with open(out_path, "w") as f:
             json.dump(dict(sorted(data.items())), f)
@@ -298,6 +310,8 @@ def main():
     parser = argparse.ArgumentParser(
         description="Step 5: Map DensePose embeddings to SMPL vertices")
     parser.add_argument("--patient", type=str, default=None)
+    parser.add_argument("--no-mask", action="store_true",
+                        help="Skip binary-mask filtering (no vertex_parts_masked.json)")
     args = parser.parse_args()
 
     patients = [args.patient] if args.patient else cfg.get_patient_ids()
@@ -305,9 +319,13 @@ def main():
         print("No patient directories found under", cfg.DATA_DIR)
         sys.exit(1)
 
+    use_mask = not args.no_mask
+    if not use_mask:
+        print("[Step 5] Running without binary masks")
+
     for pid in patients:
         print(f"[Step 5] Vertex mapping: {pid}")
-        map_patient(pid)
+        map_patient(pid, use_mask=use_mask)
 
 
 if __name__ == "__main__":

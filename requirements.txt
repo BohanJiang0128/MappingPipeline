@@ -7,6 +7,7 @@
 #     See https://pytorch.org/get-started/locally/
 #   - Detectron2 must be installed separately.
 #     See https://detectron2.readthedocs.io/en/latest/tutorials/install.html
+#   - DensePose is included as a local directory (densepose/) — no pip install needed.
 #   - The Hugging Face diffusers model is downloaded on first run.
 
 # Core
@@ -20,8 +21,14 @@ tqdm
 diffusers
 transformers
 accelerate
+safetensors
 
-# DensePose (Steps 4–5) – detectron2 & torch installed separately
+# DensePose (Steps 4–5) – detectron2 & torch installed separately;
+# the densepose/ package is local and does not need to be installed.
 
-# BSA computation (Step 6)
+# BSA computation (Step 6) + Navigation tool
 pyvista
+
+# Navigation tool (navigation_tool.py)
+PySide6
+pyvistaqt
