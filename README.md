@@ -67,7 +67,6 @@ MappingPipeline/
 | CUDA GPU | Required for Steps 1, 4, 5 |
 | PyTorch + CUDA | Install for your driver version: https://pytorch.org |
 | Detectron2 | https://detectron2.readthedocs.io/en/latest/tutorials/install.html |
-| Tk backend | `sudo apt install python3-tk` (for QA GUI in Step 2) |
 
 ### Install Python dependencies
 

@@ -72,7 +72,7 @@ fi
 
 # Step 2: QA selection (interactive)
 if should_run 2; then
-    echo "──── Step 2: QA Selection (interactive) ────"
+    echo "──── Step 2: QA Selection (open browser at localhost:8505) ────"
     python -m steps.qa_select $PATIENT_ARG
     echo ""
 fi

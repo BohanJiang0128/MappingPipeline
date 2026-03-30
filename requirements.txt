@@ -14,7 +14,6 @@
 numpy
 opencv-python
 Pillow
-matplotlib
 tqdm
 
 # Diffusion outpainting (Step 1)
@@ -22,6 +21,9 @@ diffusers
 transformers
 accelerate
 safetensors
+
+# QA selection web interface (Step 2)
+flask
 
 # DensePose (Steps 4–5) – detectron2 & torch installed separately;
 # the densepose/ package is local and does not need to be installed.

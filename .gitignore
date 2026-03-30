@@ -9,8 +9,8 @@ build/
 # Model weights (too large for git)
 assets/model_final_1d3314.pkl
 
-# Data (user-provided)
-data/NIH-*/
+# Data (user-provided, must stay private)
+data/*/
 
 # IDE
 .vscode/
@@ -24,3 +24,6 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Figure generation scripts (not part of main pipeline)
+figures/
